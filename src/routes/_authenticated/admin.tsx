@@ -317,12 +317,13 @@ function PackagesTab() {
           <div key={p.id} className="glass rounded-xl p-4">
             <div className="flex items-start justify-between">
               <div>
-                <div className="font-bold">{p.title} {p.popular && <Badge className="ml-1">Popular</Badge>} {!p.active && <Badge variant="secondary" className="ml-1">Inactive</Badge>}</div>
+                <div className="font-bold">{p.title} {p.popular && <Badge className="ml-1">Popular</Badge>} {!p.active && <Badge variant="secondary" className="ml-1">Inactive</Badge>} {p.allow_thumbnail && <Badge variant="outline" className="ml-1 border-primary text-primary">Thumbnails</Badge>}</div>
                 <div className="text-sm text-muted-foreground">৳{p.price} · <span className="neon-text">{p.credits} credits</span> · <span className="text-primary"><Video className="h-3 w-3 inline" /> {p.max_resolution?.toUpperCase()}</span></div>
                 {p.features.length > 0 && <ul className="mt-2 text-xs text-muted-foreground list-disc pl-4">{p.features.map((f, i) => <li key={i}>{f}</li>)}</ul>}
               </div>
               <div className="flex flex-col gap-2">
                 <Button size="sm" variant="outline" onClick={() => toggleActive(p)}>{p.active ? "Disable" : "Enable"}</Button>
+                <Button size="sm" variant="outline" onClick={() => toggleThumb(p)}>{p.allow_thumbnail ? "Thumb: ON" : "Thumb: OFF"}</Button>
                 <Button size="sm" variant="destructive" onClick={() => remove(p.id)}><Trash2 className="h-4 w-4" /></Button>
               </div>
             </div>
