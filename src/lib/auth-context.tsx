@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadProfile = async (uid: string) => {
     const [{ data: p, error: profileError }, { data: admin, error: roleError }] = await Promise.all([
-      supabase.from("profiles").select("id,username,email,credits,avatar_url,max_resolution").eq("id", uid).maybeSingle(),
+      supabase.from("profiles").select("id,username,email,credits,avatar_url,max_resolution,can_upload_thumbnails").eq("id", uid).maybeSingle(),
       supabase.rpc("has_role", { _user_id: uid, _role: "admin" }),
     ]);
     if (profileError) console.error("Profile fetch failed", profileError);
