@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Users, CreditCard, Package, BarChart3, Check, X, Plus, Trash2, Coins, Image as ImageIcon, Bell, Video, Sparkles, Wand2, Palette } from "lucide-react";
+import { Users, CreditCard, Package, BarChart3, Check, X, Plus, Trash2, Coins, Image as ImageIcon, Bell, Video, Sparkles, Wand2, Palette, Search, ImagePlus } from "lucide-react";
 import { RESOLUTIONS, type Resolution } from "@/lib/resolutions";
 import { useServerFn } from "@tanstack/react-start";
 import { aiExtractBackground, aiGenerateTemplate, aiGenerateBatch, aiGenerateVariants } from "@/lib/ai-template.functions";
@@ -44,6 +44,7 @@ function AdminPage() {
           <TabsTrigger value="templates"><ImageIcon className="h-4 w-4 mr-1.5" />Templates</TabsTrigger>
           <TabsTrigger value="aibatch"><Wand2 className="h-4 w-4 mr-1.5" />AI Batch</TabsTrigger>
           <TabsTrigger value="newai"><Palette className="h-4 w-4 mr-1.5" />New AI</TabsTrigger>
+          <TabsTrigger value="thumbnails"><ImagePlus className="h-4 w-4 mr-1.5" />Thumbnails</TabsTrigger>
           <TabsTrigger value="notify"><Bell className="h-4 w-4 mr-1.5" />Notify</TabsTrigger>
         </TabsList>
         <TabsContent value="analytics"><AnalyticsTab /></TabsContent>
@@ -53,6 +54,7 @@ function AdminPage() {
         <TabsContent value="templates"><TemplatesTab /></TabsContent>
         <TabsContent value="aibatch"><AiBatchTab /></TabsContent>
         <TabsContent value="newai"><NewAiTab /></TabsContent>
+        <TabsContent value="thumbnails"><ThumbnailAccessTab /></TabsContent>
         <TabsContent value="notify"><NotifyTab /></TabsContent>
       </Tabs>
     </div>
@@ -243,12 +245,13 @@ function UsersTab() {
 type Pkg = {
   id: string; title: string; price: number; credits: number; popular: boolean;
   active: boolean; sort_order: number; features: string[]; max_resolution: Resolution;
+  allow_thumbnail: boolean;
 };
 
 function PackagesTab() {
   const [list, setList] = useState<Pkg[]>([]);
-  const [form, setForm] = useState<{ title: string; price: number; credits: number; popular: boolean; sort_order: number; features: string; max_resolution: Resolution }>(
-    { title: "", price: 100, credits: 10, popular: false, sort_order: 0, features: "", max_resolution: "480p" }
+  const [form, setForm] = useState<{ title: string; price: number; credits: number; popular: boolean; sort_order: number; features: string; max_resolution: Resolution; allow_thumbnail: boolean }>(
+    { title: "", price: 100, credits: 10, popular: false, sort_order: 0, features: "", max_resolution: "480p", allow_thumbnail: false }
   );
 
   const load = async () => {
@@ -264,15 +267,19 @@ function PackagesTab() {
     const { error } = await supabase.from("credit_packages").insert({
       title: form.title, price: form.price, credits: form.credits,
       popular: form.popular, sort_order: form.sort_order, features,
-      max_resolution: form.max_resolution,
+      max_resolution: form.max_resolution, allow_thumbnail: form.allow_thumbnail,
     });
     if (error) return toast.error(error.message);
     toast.success("Package created");
-    setForm({ title: "", price: 100, credits: 10, popular: false, sort_order: 0, features: "", max_resolution: "480p" });
+    setForm({ title: "", price: 100, credits: 10, popular: false, sort_order: 0, features: "", max_resolution: "480p", allow_thumbnail: false });
     load();
   };
   const toggleActive = async (p: Pkg) => {
     await supabase.from("credit_packages").update({ active: !p.active }).eq("id", p.id);
+    load();
+  };
+  const toggleThumb = async (p: Pkg) => {
+    await supabase.from("credit_packages").update({ allow_thumbnail: !p.allow_thumbnail }).eq("id", p.id);
     load();
   };
   const remove = async (id: string) => {
@@ -302,6 +309,7 @@ function PackagesTab() {
         </div>
         <div><Label>Features (one per line)</Label><Textarea rows={3} value={form.features} onChange={(e) => setForm({ ...form, features: e.target.value })} /></div>
         <div className="flex items-center gap-2"><Switch checked={form.popular} onCheckedChange={(v) => setForm({ ...form, popular: v })} /><Label>Mark as Popular</Label></div>
+        <div className="flex items-center gap-2"><Switch checked={form.allow_thumbnail} onCheckedChange={(v) => setForm({ ...form, allow_thumbnail: v })} /><Label>Allow Thumbnail Upload</Label></div>
         <Button onClick={create} className="w-full">Create Package</Button>
       </div>
       <div className="space-y-3">
@@ -309,12 +317,13 @@ function PackagesTab() {
           <div key={p.id} className="glass rounded-xl p-4">
             <div className="flex items-start justify-between">
               <div>
-                <div className="font-bold">{p.title} {p.popular && <Badge className="ml-1">Popular</Badge>} {!p.active && <Badge variant="secondary" className="ml-1">Inactive</Badge>}</div>
+                <div className="font-bold">{p.title} {p.popular && <Badge className="ml-1">Popular</Badge>} {!p.active && <Badge variant="secondary" className="ml-1">Inactive</Badge>} {p.allow_thumbnail && <Badge variant="outline" className="ml-1 border-primary text-primary">Thumbnails</Badge>}</div>
                 <div className="text-sm text-muted-foreground">৳{p.price} · <span className="neon-text">{p.credits} credits</span> · <span className="text-primary"><Video className="h-3 w-3 inline" /> {p.max_resolution?.toUpperCase()}</span></div>
                 {p.features.length > 0 && <ul className="mt-2 text-xs text-muted-foreground list-disc pl-4">{p.features.map((f, i) => <li key={i}>{f}</li>)}</ul>}
               </div>
               <div className="flex flex-col gap-2">
                 <Button size="sm" variant="outline" onClick={() => toggleActive(p)}>{p.active ? "Disable" : "Enable"}</Button>
+                <Button size="sm" variant="outline" onClick={() => toggleThumb(p)}>{p.allow_thumbnail ? "Thumb: ON" : "Thumb: OFF"}</Button>
                 <Button size="sm" variant="destructive" onClick={() => remove(p.id)}><Trash2 className="h-4 w-4" /></Button>
               </div>
             </div>
@@ -733,6 +742,69 @@ function NewAiTab() {
             Click "Generate Color Variants" to start.
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function ThumbnailAccessTab() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Array<{ id: string; email: string | null; username: string | null; can_upload_thumbnails: boolean; credits: number }>>([]);
+  const [searching, setSearching] = useState(false);
+
+  const search = async () => {
+    const q = query.trim();
+    if (!q) return toast.error("Enter a user ID, email, or username");
+    setSearching(true);
+    // Try ID exact match first, otherwise email/username ilike
+    const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(q);
+    let req = supabase.from("profiles").select("id,email,username,can_upload_thumbnails,credits").limit(20);
+    req = looksLikeUuid ? req.eq("id", q) : req.or(`email.ilike.%${q}%,username.ilike.%${q}%,id.eq.${q}`);
+    const { data, error } = await req;
+    setSearching(false);
+    if (error) return toast.error(error.message);
+    setResults((data ?? []) as typeof results);
+    if (!data?.length) toast.message("No users found");
+  };
+
+  const setAccess = async (uid: string, allow: boolean) => {
+    const { error } = await supabase.rpc("admin_set_thumbnail_access", { _user_id: uid, _allow: allow });
+    if (error) return toast.error(error.message);
+    toast.success(allow ? "Access granted" : "Access revoked");
+    setResults((r) => r.map((u) => u.id === uid ? { ...u, can_upload_thumbnails: allow } : u));
+  };
+
+  return (
+    <div className="mt-6 space-y-4">
+      <div className="glass rounded-2xl p-5">
+        <h3 className="font-bold text-lg flex items-center gap-2"><ImagePlus className="h-5 w-5 text-primary" />Thumbnail Access Control</h3>
+        <p className="text-sm text-muted-foreground mt-1">Search by user ID (UID), email, or username. Grant access so the user can upload their own private thumbnails.</p>
+        <div className="mt-4 flex gap-2">
+          <Input placeholder="UID / email / username…" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()} />
+          <Button onClick={search} disabled={searching}><Search className="h-4 w-4 mr-1.5" />Search</Button>
+        </div>
+      </div>
+      <div className="space-y-2">
+        {results.map((u) => (
+          <div key={u.id} className="glass rounded-xl p-4 flex flex-wrap items-center gap-4">
+            <div className="flex-1 min-w-[220px]">
+              <div className="font-semibold">{u.username ?? "—"} <Badge variant="secondary" className="ml-2 text-[10px]">{u.credits} credits</Badge></div>
+              <div className="text-xs text-muted-foreground">{u.email}</div>
+              <div className="text-[10px] text-muted-foreground/70 font-mono mt-0.5">{u.id}</div>
+            </div>
+            {u.can_upload_thumbnails ? (
+              <>
+                <Badge className="bg-primary">Access: ON</Badge>
+                <Button size="sm" variant="destructive" onClick={() => setAccess(u.id, false)}>Revoke</Button>
+              </>
+            ) : (
+              <>
+                <Badge variant="secondary">Access: OFF</Badge>
+                <Button size="sm" onClick={() => setAccess(u.id, true)}><Check className="h-4 w-4 mr-1" />Grant Access</Button>
+              </>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );

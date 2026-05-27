@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Download, Lock, Sparkles } from "lucide-react";
+import { Download, Lock, Sparkles, Upload, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { RESOLUTIONS, RES_PIXEL_RATIO, RES_LABEL, isUnlocked, type Resolution } from "@/lib/resolutions";
 
@@ -16,15 +16,19 @@ export const Route = createFileRoute("/_authenticated/create")({
 });
 
 type Row = { name: string; kills: number; pos: number };
-type Template = { id: string; name: string; image_url: string; accent_color: string; premium: boolean };
+type Template = { id: string; name: string; image_url: string; accent_color: string; premium: boolean; isUser?: boolean; locked?: boolean; storage_path?: string };
 
-// Fixed export canvas — same on phone & PC
 const CANVAS_W = 1080;
 const CANVAS_H = 1350;
+// Background used when "None" template is selected — matches the site's dark theme
+const NONE_BG = "radial-gradient(ellipse at top, #0c1c3e 0%, #050813 70%)";
 
 function Create() {
   const { user, profile, refresh } = useAuth();
   const userMax: Resolution = (profile?.max_resolution ?? "244p") as Resolution;
+  const canUpload = !!profile?.can_upload_thumbnails;
+  const credits = profile?.credits ?? 0;
+
   const [tournament, setTournament] = useState("Point Arena Championship");
   const [textColor, setTextColor] = useState("#ffffff");
   const [tagColor, setTagColor] = useState("#f59e0b");
@@ -33,7 +37,9 @@ function Create() {
   );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [userTpls, setUserTpls] = useState<Template[]>([]);
   const [tplId, setTplId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -42,13 +48,75 @@ function Create() {
       .then(({ data }) => setTemplates((data ?? []) as Template[]));
   }, []);
 
-  const tpl = templates.find((t) => t.id === tplId) ?? null;
-  const accent = tpl?.accent_color ?? "#34d399"; // default neon green
+  const loadUserThumbs = async () => {
+    if (!user) return;
+    const { data } = await supabase.from("user_thumbnails")
+      .select("id,name,image_url,accent_color").eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+    if (!data) return;
+    // Generate signed URLs for private bucket
+    const enriched = await Promise.all(data.map(async (t) => {
+      const path = t.image_url; // we store the storage path
+      const { data: signed } = await supabase.storage.from("user-thumbnails").createSignedUrl(path, 3600);
+      return {
+        id: t.id, name: t.name, accent_color: t.accent_color, premium: false,
+        image_url: signed?.signedUrl ?? "",
+        storage_path: path,
+        isUser: true,
+        locked: credits <= 0,
+      } as Template;
+    }));
+    setUserTpls(enriched);
+  };
+
+  useEffect(() => { loadUserThumbs(); }, [user?.id, credits]);
+
+  const allTpls = useMemo(() => [...userTpls, ...templates], [userTpls, templates]);
+  const tpl = allTpls.find((t) => t.id === tplId) ?? null;
+  // If selected user thumbnail becomes locked, deselect
+  useEffect(() => {
+    if (tpl?.isUser && tpl.locked) setTplId(null);
+  }, [tpl]);
+
+  const accent = tpl?.accent_color ?? "#34d399";
 
   const ranked = useMemo(() => rows.map((r, idx) => ({ ...r, idx, total: r.kills + r.pos }))
     .sort((a, b) => b.total - a.total || b.kills - a.kills), [rows]);
   const update = (i: number, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !user) return;
+    if (!canUpload) return toast.error("You don't have thumbnail upload access.");
+    if (file.size > 5 * 1024 * 1024) return toast.error("Max 5MB");
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("user-thumbnails").upload(path, file);
+      if (upErr) throw upErr;
+      const { error: insErr } = await supabase.from("user_thumbnails").insert({
+        user_id: user.id, name: file.name.replace(/\.[^.]+$/, "").slice(0, 40), image_url: path,
+      });
+      if (insErr) throw insErr;
+      toast.success("Thumbnail uploaded");
+      await loadUserThumbs();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const deleteThumb = async (t: Template) => {
+    if (!confirm("Delete this thumbnail?")) return;
+    if (t.storage_path) await supabase.storage.from("user-thumbnails").remove([t.storage_path]);
+    await supabase.from("user_thumbnails").delete().eq("id", t.id);
+    if (tplId === t.id) setTplId(null);
+    loadUserThumbs();
+  };
 
   const download = async (resolution: Resolution) => {
     if (!ref.current || !user) return;
@@ -67,13 +135,11 @@ function Create() {
           return toast.error("Upgrade your credits package to unlock this resolution.");
         throw error;
       }
-      // Fixed canvas size → identical output on phone and PC
       const dataUrl = await toPng(ref.current, {
         pixelRatio: RES_PIXEL_RATIO[resolution],
         cacheBust: true,
         width: CANVAS_W,
         height: CANVAS_H,
-        backgroundColor: tpl ? undefined : "transparent",
         style: { transform: "none" },
       });
       await supabase.from("point_tables").insert({
@@ -104,12 +170,30 @@ function Create() {
           </div>
         </div>
         <div>
-          <label className="text-sm text-muted-foreground">Tag Color (Rank/Team/Kills/Pos/Total & #1 & totals)</label>
+          <label className="text-sm text-muted-foreground">Tag Color</label>
           <div className="flex gap-2 items-center mt-1">
             <Input type="color" value={tagColor} onChange={(e) => setTagColor(e.target.value)} className="w-16 h-10 p-1" />
             <Input value={tagColor} onChange={(e) => setTagColor(e.target.value)} placeholder="#f59e0b" />
           </div>
         </div>
+
+        {canUpload && (
+          <div>
+            <label className="text-sm text-muted-foreground">Your Thumbnails</label>
+            <div className="mt-1 flex items-center gap-2">
+              <label className="flex-1">
+                <input type="file" accept="image/*" hidden onChange={handleUpload} disabled={uploading} />
+                <Button asChild variant="outline" size="sm" className="w-full cursor-pointer" disabled={uploading}>
+                  <span><Upload className="h-4 w-4 mr-1.5" />{uploading ? "Uploading…" : "Upload your thumbnail"}</span>
+                </Button>
+              </label>
+            </div>
+            {credits <= 0 && userTpls.length > 0 && (
+              <p className="text-[11px] text-destructive mt-1.5">Out of credits — your thumbnails are locked. Buy a pack to use them.</p>
+            )}
+          </div>
+        )}
+
         <div>
           <label className="text-sm text-muted-foreground">Template</label>
           <div className="mt-1 grid grid-cols-3 gap-2 max-h-44 overflow-y-auto">
@@ -118,6 +202,22 @@ function Create() {
               style={{ background: "transparent" }}>
               None
             </button>
+            {userTpls.map((t) => (
+              <div key={t.id} className="relative group">
+                <button
+                  onClick={() => t.locked ? toast.error("Locked — buy credits to use your thumbnails.") : setTplId(t.id)}
+                  className={`relative h-16 w-full rounded-lg border-2 overflow-hidden ${tplId === t.id ? "border-primary" : "border-primary/40"} ${t.locked ? "opacity-50" : ""}`}
+                  title={t.name}>
+                  <img src={t.image_url} alt={t.name} className="absolute inset-0 w-full h-full object-cover" />
+                  {t.locked && <Lock className="absolute inset-0 m-auto h-5 w-5 text-white drop-shadow" />}
+                  <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-[9px] px-1 truncate text-white">★ {t.name}</span>
+                </button>
+                <button onClick={() => deleteThumb(t)}
+                  className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition">
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
             {templates.map((t) => (
               <button key={t.id} onClick={() => setTplId(t.id)}
                 className={`relative h-16 rounded-lg border-2 overflow-hidden ${tplId === t.id ? "border-primary" : "border-border"}`}
@@ -235,7 +335,7 @@ function PreviewArea({
             height: canvasH,
             transform: `scale(${scale})`,
             transformOrigin: "top left",
-            background: tpl ? `url(${tpl.image_url}) center/cover no-repeat` : "transparent",
+            background: tpl ? `url(${tpl.image_url}) center/cover no-repeat` : NONE_BG,
             padding: 80,
             boxSizing: "border-box",
             color: textColor,

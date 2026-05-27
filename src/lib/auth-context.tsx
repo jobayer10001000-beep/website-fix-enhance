@@ -3,7 +3,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 export type Resolution = "244p" | "480p" | "720p" | "1080p" | "2k" | "4k";
-type Profile = { id: string; username: string | null; email: string | null; credits: number; avatar_url: string | null; max_resolution: Resolution };
+type Profile = { id: string; username: string | null; email: string | null; credits: number; avatar_url: string | null; max_resolution: Resolution; can_upload_thumbnails: boolean };
 
 type AuthCtx = {
   user: User | null;
@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadProfile = async (uid: string) => {
     const [{ data: p, error: profileError }, { data: admin, error: roleError }] = await Promise.all([
-      supabase.from("profiles").select("id,username,email,credits,avatar_url,max_resolution").eq("id", uid).maybeSingle(),
+      supabase.from("profiles").select("id,username,email,credits,avatar_url,max_resolution,can_upload_thumbnails").eq("id", uid).maybeSingle(),
       supabase.rpc("has_role", { _user_id: uid, _role: "admin" }),
     ]);
     if (profileError) console.error("Profile fetch failed", profileError);
