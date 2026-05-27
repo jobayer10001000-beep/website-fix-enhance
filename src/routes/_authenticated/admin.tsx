@@ -245,12 +245,13 @@ function UsersTab() {
 type Pkg = {
   id: string; title: string; price: number; credits: number; popular: boolean;
   active: boolean; sort_order: number; features: string[]; max_resolution: Resolution;
+  allow_thumbnail: boolean;
 };
 
 function PackagesTab() {
   const [list, setList] = useState<Pkg[]>([]);
-  const [form, setForm] = useState<{ title: string; price: number; credits: number; popular: boolean; sort_order: number; features: string; max_resolution: Resolution }>(
-    { title: "", price: 100, credits: 10, popular: false, sort_order: 0, features: "", max_resolution: "480p" }
+  const [form, setForm] = useState<{ title: string; price: number; credits: number; popular: boolean; sort_order: number; features: string; max_resolution: Resolution; allow_thumbnail: boolean }>(
+    { title: "", price: 100, credits: 10, popular: false, sort_order: 0, features: "", max_resolution: "480p", allow_thumbnail: false }
   );
 
   const load = async () => {
@@ -266,15 +267,19 @@ function PackagesTab() {
     const { error } = await supabase.from("credit_packages").insert({
       title: form.title, price: form.price, credits: form.credits,
       popular: form.popular, sort_order: form.sort_order, features,
-      max_resolution: form.max_resolution,
+      max_resolution: form.max_resolution, allow_thumbnail: form.allow_thumbnail,
     });
     if (error) return toast.error(error.message);
     toast.success("Package created");
-    setForm({ title: "", price: 100, credits: 10, popular: false, sort_order: 0, features: "", max_resolution: "480p" });
+    setForm({ title: "", price: 100, credits: 10, popular: false, sort_order: 0, features: "", max_resolution: "480p", allow_thumbnail: false });
     load();
   };
   const toggleActive = async (p: Pkg) => {
     await supabase.from("credit_packages").update({ active: !p.active }).eq("id", p.id);
+    load();
+  };
+  const toggleThumb = async (p: Pkg) => {
+    await supabase.from("credit_packages").update({ allow_thumbnail: !p.allow_thumbnail }).eq("id", p.id);
     load();
   };
   const remove = async (id: string) => {
