@@ -44,6 +44,7 @@ function AdminPage() {
           <TabsTrigger value="templates"><ImageIcon className="h-4 w-4 mr-1.5" />Templates</TabsTrigger>
           <TabsTrigger value="aibatch"><Wand2 className="h-4 w-4 mr-1.5" />AI Batch</TabsTrigger>
           <TabsTrigger value="newai"><Palette className="h-4 w-4 mr-1.5" />New AI</TabsTrigger>
+          <TabsTrigger value="thumbnails"><ImagePlus className="h-4 w-4 mr-1.5" />Thumbnails</TabsTrigger>
           <TabsTrigger value="notify"><Bell className="h-4 w-4 mr-1.5" />Notify</TabsTrigger>
         </TabsList>
         <TabsContent value="analytics"><AnalyticsTab /></TabsContent>
@@ -53,6 +54,7 @@ function AdminPage() {
         <TabsContent value="templates"><TemplatesTab /></TabsContent>
         <TabsContent value="aibatch"><AiBatchTab /></TabsContent>
         <TabsContent value="newai"><NewAiTab /></TabsContent>
+        <TabsContent value="thumbnails"><ThumbnailAccessTab /></TabsContent>
         <TabsContent value="notify"><NotifyTab /></TabsContent>
       </Tabs>
     </div>
