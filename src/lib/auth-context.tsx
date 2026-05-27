@@ -3,7 +3,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 export type Resolution = "244p" | "480p" | "720p" | "1080p" | "2k" | "4k";
-type Profile = { id: string; username: string | null; email: string | null; credits: number; avatar_url: string | null; max_resolution: Resolution };
+type Profile = { id: string; username: string | null; email: string | null; credits: number; avatar_url: string | null; max_resolution: Resolution; can_upload_thumbnails: boolean };
 
 type AuthCtx = {
   user: User | null;
