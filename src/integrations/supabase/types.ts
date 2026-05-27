@@ -62,6 +62,7 @@ export type Database = {
       credit_packages: {
         Row: {
           active: boolean
+          allow_thumbnail: boolean
           created_at: string
           credits: number
           features: Json
@@ -74,6 +75,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          allow_thumbnail?: boolean
           created_at?: string
           credits: number
           features?: Json
@@ -86,6 +88,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          allow_thumbnail?: boolean
           created_at?: string
           credits?: number
           features?: Json
@@ -261,6 +264,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           banned: boolean
+          can_upload_thumbnails: boolean
           created_at: string
           credits: number
           email: string | null
@@ -272,6 +276,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           banned?: boolean
+          can_upload_thumbnails?: boolean
           created_at?: string
           credits?: number
           email?: string | null
@@ -283,6 +288,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           banned?: boolean
+          can_upload_thumbnails?: boolean
           created_at?: string
           credits?: number
           email?: string | null
@@ -347,6 +353,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_thumbnails: {
+        Row: {
+          accent_color: string
+          created_at: string
+          id: string
+          image_url: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          accent_color?: string
+          created_at?: string
+          id?: string
+          image_url: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          accent_color?: string
+          created_at?: string
+          id?: string
+          image_url?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -355,6 +388,10 @@ export type Database = {
       admin_adjust_credits: {
         Args: { _delta: number; _reason: string; _user_id: string }
         Returns: number
+      }
+      admin_set_thumbnail_access: {
+        Args: { _allow: boolean; _user_id: string }
+        Returns: undefined
       }
       admin_set_user_quality: {
         Args: {
