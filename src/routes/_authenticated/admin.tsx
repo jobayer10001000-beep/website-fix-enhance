@@ -309,6 +309,7 @@ function PackagesTab() {
         </div>
         <div><Label>Features (one per line)</Label><Textarea rows={3} value={form.features} onChange={(e) => setForm({ ...form, features: e.target.value })} /></div>
         <div className="flex items-center gap-2"><Switch checked={form.popular} onCheckedChange={(v) => setForm({ ...form, popular: v })} /><Label>Mark as Popular</Label></div>
+        <div className="flex items-center gap-2"><Switch checked={form.allow_thumbnail} onCheckedChange={(v) => setForm({ ...form, allow_thumbnail: v })} /><Label>Allow Thumbnail Upload</Label></div>
         <Button onClick={create} className="w-full">Create Package</Button>
       </div>
       <div className="space-y-3">
