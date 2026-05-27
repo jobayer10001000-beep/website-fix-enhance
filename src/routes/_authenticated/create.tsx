@@ -57,7 +57,7 @@ function Create() {
     }
     try {
       const { data, error } = await supabase.rpc("spend_credit_for_download", {
-        _table_id: undefined as unknown as string,
+        _table_id: null as unknown as string,
         _resolution: resolution,
       });
       if (error) {
