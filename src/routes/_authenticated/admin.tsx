@@ -746,3 +746,66 @@ function NewAiTab() {
     </div>
   );
 }
+
+function ThumbnailAccessTab() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Array<{ id: string; email: string | null; username: string | null; can_upload_thumbnails: boolean; credits: number }>>([]);
+  const [searching, setSearching] = useState(false);
+
+  const search = async () => {
+    const q = query.trim();
+    if (!q) return toast.error("Enter a user ID, email, or username");
+    setSearching(true);
+    // Try ID exact match first, otherwise email/username ilike
+    const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(q);
+    let req = supabase.from("profiles").select("id,email,username,can_upload_thumbnails,credits").limit(20);
+    req = looksLikeUuid ? req.eq("id", q) : req.or(`email.ilike.%${q}%,username.ilike.%${q}%,id.eq.${q}`);
+    const { data, error } = await req;
+    setSearching(false);
+    if (error) return toast.error(error.message);
+    setResults((data ?? []) as typeof results);
+    if (!data?.length) toast.message("No users found");
+  };
+
+  const setAccess = async (uid: string, allow: boolean) => {
+    const { error } = await supabase.rpc("admin_set_thumbnail_access", { _user_id: uid, _allow: allow });
+    if (error) return toast.error(error.message);
+    toast.success(allow ? "Access granted" : "Access revoked");
+    setResults((r) => r.map((u) => u.id === uid ? { ...u, can_upload_thumbnails: allow } : u));
+  };
+
+  return (
+    <div className="mt-6 space-y-4">
+      <div className="glass rounded-2xl p-5">
+        <h3 className="font-bold text-lg flex items-center gap-2"><ImagePlus className="h-5 w-5 text-primary" />Thumbnail Access Control</h3>
+        <p className="text-sm text-muted-foreground mt-1">Search by user ID (UID), email, or username. Grant access so the user can upload their own private thumbnails.</p>
+        <div className="mt-4 flex gap-2">
+          <Input placeholder="UID / email / username…" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()} />
+          <Button onClick={search} disabled={searching}><Search className="h-4 w-4 mr-1.5" />Search</Button>
+        </div>
+      </div>
+      <div className="space-y-2">
+        {results.map((u) => (
+          <div key={u.id} className="glass rounded-xl p-4 flex flex-wrap items-center gap-4">
+            <div className="flex-1 min-w-[220px]">
+              <div className="font-semibold">{u.username ?? "—"} <Badge variant="secondary" className="ml-2 text-[10px]">{u.credits} credits</Badge></div>
+              <div className="text-xs text-muted-foreground">{u.email}</div>
+              <div className="text-[10px] text-muted-foreground/70 font-mono mt-0.5">{u.id}</div>
+            </div>
+            {u.can_upload_thumbnails ? (
+              <>
+                <Badge className="bg-primary">Access: ON</Badge>
+                <Button size="sm" variant="destructive" onClick={() => setAccess(u.id, false)}>Revoke</Button>
+              </>
+            ) : (
+              <>
+                <Badge variant="secondary">Access: OFF</Badge>
+                <Button size="sm" onClick={() => setAccess(u.id, true)}><Check className="h-4 w-4 mr-1" />Grant Access</Button>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
