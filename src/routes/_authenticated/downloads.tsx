@@ -65,5 +65,6 @@ function DownloadsPage() {
         </div>
       </div>
     </div>
+    </div>
   );
 }

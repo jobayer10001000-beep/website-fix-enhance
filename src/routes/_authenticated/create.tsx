@@ -327,6 +327,7 @@ function Create() {
               </div>
       </PreviewArea>
     </div>
+    </div>
   );
 }
 
