@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /credits
+Disallow: /create
+Disallow: /downloads
+Disallow: /my-tables
+Disallow: /notifications
+
+Sitemap: https://pa-arena.lovable.app/sitemap.xml

@@ -10,7 +10,16 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/auth")({
-  head: () => ({ meta: [{ title: "Sign in — Point Arena" }] }),
+  head: () => ({
+    meta: [
+      { title: "Sign in — Point Arena" },
+      { name: "description", content: "Sign in or create your Point Arena account to start generating esports point tables for PUBG, BGMI and Free Fire tournaments." },
+      { property: "og:title", content: "Sign in — Point Arena" },
+      { property: "og:description", content: "Sign in or create your Point Arena account to start generating esports point tables." },
+      { property: "og:url", content: "https://pa-arena.lovable.app/auth" },
+    ],
+    links: [{ rel: "canonical", href: "https://pa-arena.lovable.app/auth" }],
+  }),
   component: AuthPage,
 });
 
@@ -63,14 +72,14 @@ function AuthPage() {
             <TabsTrigger value="signup">Sign up</TabsTrigger>
           </TabsList>
           <TabsContent value="signin" className="space-y-3 pt-4">
-            <div><Label>Email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-            <div><Label>Password</Label><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+            <div><Label htmlFor="signin-email">Email</Label><Input id="signin-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+            <div><Label htmlFor="signin-password">Password</Label><Input id="signin-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
             <Button className="w-full neon-border" disabled={loading} onClick={signIn}>Sign in</Button>
           </TabsContent>
           <TabsContent value="signup" className="space-y-3 pt-4">
-            <div><Label>Username</Label><Input value={username} onChange={(e) => setUsername(e.target.value)} /></div>
-            <div><Label>Email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-            <div><Label>Password</Label><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+            <div><Label htmlFor="signup-username">Username</Label><Input id="signup-username" value={username} onChange={(e) => setUsername(e.target.value)} /></div>
+            <div><Label htmlFor="signup-email">Email</Label><Input id="signup-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+            <div><Label htmlFor="signup-password">Password</Label><Input id="signup-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
             <Button className="w-full neon-border" disabled={loading} onClick={signUp}>Create account</Button>
           </TabsContent>
         </Tabs>

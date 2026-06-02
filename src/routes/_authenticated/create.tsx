@@ -11,7 +11,27 @@ import { toast } from "sonner";
 import { RESOLUTIONS, RES_PIXEL_RATIO, RES_LABEL, isUnlocked, type Resolution } from "@/lib/resolutions";
 
 export const Route = createFileRoute("/_authenticated/create")({
-  head: () => ({ meta: [{ title: "Create Point Table — Point Arena" }] }),
+  head: () => ({
+    meta: [
+      { title: "Create Point Table — Point Arena" },
+      { name: "description", content: "Build live esports point tables: edit team names, kills and positions, then download HD images for your tournament." },
+      { property: "og:title", content: "Create Point Table — Point Arena" },
+      { property: "og:description", content: "Build live esports point tables and download HD images for your tournament." },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          name: "Point Arena Point Table Generator",
+          applicationCategory: "DesignApplication",
+          operatingSystem: "Web",
+          offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+        }),
+      },
+    ],
+  }),
   component: Create,
 });
 
@@ -156,6 +176,8 @@ function Create() {
   };
 
   return (
+    <div>
+      <h1 className="sr-only">Create Point Table</h1>
     <div className="grid gap-8 lg:grid-cols-[420px_1fr]">
       <div className="glass rounded-2xl p-6 space-y-4">
         <div>
@@ -213,6 +235,7 @@ function Create() {
                   <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-[9px] px-1 truncate text-white">★ {t.name}</span>
                 </button>
                 <button onClick={() => deleteThumb(t)}
+                  aria-label={`Delete thumbnail ${t.name}`}
                   className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition">
                   <Trash2 className="h-3 w-3" />
                 </button>
@@ -303,6 +326,7 @@ function Create() {
                 ))}
               </div>
       </PreviewArea>
+    </div>
     </div>
   );
 }

@@ -1,0 +1,8 @@
+# Point Arena
+
+> Point Arena is a dynamic esports point table generator for PUBG, BGMI, Free Fire and other battle-royale tournaments. Create, preview and download HD point tables in seconds.
+
+## Pages
+
+- [Home](/): Overview, features, and getting started with Point Arena.
+- [Sign in / Sign up](/auth): Create an account or log in to start generating point tables.

@@ -85,14 +85,14 @@ function Credits() {
                     Send <b>৳{p.price}</b> to <span className="neon-text font-bold">{payNumber}</span> via bKash or Nagad (Send Money), then enter the Transaction ID below.
                   </div>
                   <div>
-                    <Label>Payment method</Label>
-                    <RadioGroup value={method} onValueChange={(v) => setMethod(v as "bkash" | "nagad")} className="flex gap-4 mt-2">
-                      <label className="flex items-center gap-2"><RadioGroupItem value="bkash" /> bKash</label>
-                      <label className="flex items-center gap-2"><RadioGroupItem value="nagad" /> Nagad</label>
+                    <Label id={`pay-method-label-${p.id}`}>Payment method</Label>
+                    <RadioGroup value={method} onValueChange={(v) => setMethod(v as "bkash" | "nagad")} className="flex gap-4 mt-2" aria-labelledby={`pay-method-label-${p.id}`}>
+                      <label className="flex items-center gap-2"><RadioGroupItem value="bkash" id={`pay-bkash-${p.id}`} /> bKash</label>
+                      <label className="flex items-center gap-2"><RadioGroupItem value="nagad" id={`pay-nagad-${p.id}`} /> Nagad</label>
                     </RadioGroup>
                   </div>
-                  <div><Label>Your sender number</Label><Input value={sender} onChange={(e) => setSender(e.target.value)} placeholder="01XXXXXXXXX" /></div>
-                  <div><Label>Transaction ID</Label><Input value={txid} onChange={(e) => setTxid(e.target.value)} placeholder="e.g. 7H4K2L9M3N" /></div>
+                  <div><Label htmlFor={`pay-sender-${p.id}`}>Your sender number</Label><Input id={`pay-sender-${p.id}`} value={sender} onChange={(e) => setSender(e.target.value)} placeholder="01XXXXXXXXX" /></div>
+                  <div><Label htmlFor={`pay-txid-${p.id}`}>Transaction ID</Label><Input id={`pay-txid-${p.id}`} value={txid} onChange={(e) => setTxid(e.target.value)} placeholder="e.g. 7H4K2L9M3N" /></div>
                   <Button className="w-full neon-border" disabled={submitting} onClick={submit}>Submit payment</Button>
                 </div>
               </DialogContent>

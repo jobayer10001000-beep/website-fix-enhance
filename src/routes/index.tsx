@@ -6,8 +6,14 @@ import { Trophy, Zap, Download, Sparkles } from "lucide-react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Point Arena — Create Professional Esports Point Tables Instantly" },
+      { title: "Point Arena — Esports Point Table Generator" },
       { name: "description", content: "Generate stunning PUBG, BGMI & Free Fire point tables in seconds. Live preview, HD download, neon esports templates." },
+      { property: "og:title", content: "Point Arena — Esports Point Table Generator" },
+      { property: "og:description", content: "Generate stunning PUBG, BGMI & Free Fire point tables in seconds. Live preview, HD download, neon esports templates." },
+      { property: "og:url", content: "https://pa-arena.lovable.app/" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://pa-arena.lovable.app/" },
     ],
   }),
   component: Index,
@@ -50,7 +56,7 @@ function Index() {
           ].map(({ icon: Icon, title, body }) => (
             <div key={title} className="glass rounded-2xl p-6 text-left">
               <Icon className="h-7 w-7 text-primary" />
-              <h3 className="mt-4 text-lg font-semibold">{title}</h3>
+              <h2 className="mt-4 text-lg font-semibold">{title}</h2>
               <p className="mt-2 text-sm text-muted-foreground">{body}</p>
             </div>
           ))}

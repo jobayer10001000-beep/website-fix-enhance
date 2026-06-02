@@ -5,7 +5,12 @@ import { useAuth } from "@/lib/auth-context";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/downloads")({
-  head: () => ({ meta: [{ title: "Downloads — Point Arena" }] }),
+  head: () => ({
+    meta: [
+      { title: "Downloads — Point Arena" },
+      { name: "description", content: "Review your Point Arena download history and credit usage activity." },
+    ],
+  }),
   component: DownloadsPage,
 });
 
@@ -26,6 +31,8 @@ function DownloadsPage() {
   }, [user]);
 
   return (
+    <div>
+      <h1 className="sr-only">Download and Credit History</h1>
     <div className="grid gap-6 lg:grid-cols-2">
       <div>
         <h2 className="text-2xl font-bold">Download History</h2>
@@ -57,6 +64,7 @@ function DownloadsPage() {
           {ledger.length === 0 && <div className="glass rounded-lg p-6 text-center text-muted-foreground">No credit activity yet.</div>}
         </div>
       </div>
+    </div>
     </div>
   );
 }
