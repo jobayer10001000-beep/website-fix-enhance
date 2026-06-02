@@ -409,6 +409,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_banned: { Args: { _uid: string }; Returns: boolean }
       reject_payment: {
         Args: { _reason: string; _request_id: string }
         Returns: undefined
