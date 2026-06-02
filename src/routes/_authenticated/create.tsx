@@ -176,9 +176,10 @@ function Create() {
   };
 
   return (
-    <div>
+    <>
       <h1 className="sr-only">Create Point Table</h1>
     <div className="grid gap-8 lg:grid-cols-[420px_1fr]">
+
       <div className="glass rounded-2xl p-6 space-y-4">
         <div>
           <label className="text-sm text-muted-foreground">Tournament Name</label>
