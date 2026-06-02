@@ -74,23 +74,41 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "POINT ARENA is a dynamic esports point table generator website." },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "POINT ARENA is a dynamic esports point table generator website." },
+      { title: "Point Arena" },
+      { name: "description", content: "Point Arena is a dynamic esports point table generator for PUBG, BGMI, Free Fire and battle-royale tournaments." },
+      { name: "author", content: "Point Arena" },
+      { property: "og:site_name", content: "Point Arena" },
+      { property: "og:title", content: "Point Arena" },
+      { property: "og:description", content: "Point Arena is a dynamic esports point table generator for PUBG, BGMI, Free Fire and battle-royale tournaments." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Lovable App" },
-      { name: "twitter:description", content: "POINT ARENA is a dynamic esports point table generator website." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5952b0d4-84a5-41ee-88a3-2dd5dc1fb03a/id-preview-32b49e15--cf9f2422-791e-47a6-bafd-de7ece672e3d.lovable.app-1779768178880.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5952b0d4-84a5-41ee-88a3-2dd5dc1fb03a/id-preview-32b49e15--cf9f2422-791e-47a6-bafd-de7ece672e3d.lovable.app-1779768178880.png" },
+      { name: "twitter:title", content: "Point Arena" },
+      { name: "twitter:description", content: "Point Arena is a dynamic esports point table generator for PUBG, BGMI, Free Fire and battle-royale tournaments." },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
+      },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "Organization",
+              name: "Point Arena",
+              url: "https://pa-arena.lovable.app",
+            },
+            {
+              "@type": "WebSite",
+              name: "Point Arena",
+              url: "https://pa-arena.lovable.app",
+            },
+          ],
+        }),
       },
     ],
   }),
