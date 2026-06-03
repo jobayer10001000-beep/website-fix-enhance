@@ -22,6 +22,13 @@ async function exists(p) {
   try { await stat(p); return true; } catch { return false; }
 }
 
+// If Nitro's vercel preset already emitted the Build Output API layout,
+// nothing to do.
+if (existsSync(join(out, "config.json"))) {
+  console.log("[vercel-postbuild] .vercel/output already present (Nitro vercel preset). Skipping.");
+  process.exit(0);
+}
+
 if (!existsSync(dist)) {
   console.error("[vercel-postbuild] dist/ not found. Run `vite build` first.");
   process.exit(1);
