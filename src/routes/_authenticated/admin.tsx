@@ -46,6 +46,7 @@ function AdminPage() {
           <TabsTrigger value="newai"><Palette className="h-4 w-4 mr-1.5" />New AI</TabsTrigger>
           <TabsTrigger value="thumbnails"><ImagePlus className="h-4 w-4 mr-1.5" />Thumbnails</TabsTrigger>
           <TabsTrigger value="notify"><Bell className="h-4 w-4 mr-1.5" />Notify</TabsTrigger>
+          <TabsTrigger value="announce"><Megaphone className="h-4 w-4 mr-1.5" />Announcement</TabsTrigger>
         </TabsList>
         <TabsContent value="analytics"><AnalyticsTab /></TabsContent>
         <TabsContent value="payments"><PaymentsTab /></TabsContent>
@@ -56,6 +57,7 @@ function AdminPage() {
         <TabsContent value="newai"><NewAiTab /></TabsContent>
         <TabsContent value="thumbnails"><ThumbnailAccessTab /></TabsContent>
         <TabsContent value="notify"><NotifyTab /></TabsContent>
+        <TabsContent value="announce"><AnnouncementTab /></TabsContent>
       </Tabs>
     </div>
   );
