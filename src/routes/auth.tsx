@@ -90,6 +90,7 @@ function AuthPage() {
           </TabsContent>
           <TabsContent value="signup" className="space-y-3 pt-4">
             <div><Label htmlFor="signup-username">Username</Label><Input id="signup-username" value={username} onChange={(e) => setUsername(e.target.value)} /></div>
+            <div><Label htmlFor="signup-phone">Phone number</Label><Input id="signup-phone" type="tel" inputMode="tel" placeholder="01XXXXXXXXX" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
             <div><Label htmlFor="signup-email">Email</Label><Input id="signup-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
             <div><Label htmlFor="signup-password">Password</Label><Input id="signup-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
             <Button className="w-full neon-border" disabled={loading} onClick={signUp}>Create account</Button>
