@@ -138,12 +138,32 @@ function Create() {
     loadUserThumbs();
   };
 
+  const fetchAsDataUrl = async (url: string): Promise<string> => {
+    const res = await fetch(url, { mode: "cors", cache: "no-store" });
+    if (!res.ok) throw new Error("Failed to load template image");
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result as string);
+      r.onerror = () => reject(new Error("Failed to read image"));
+      r.readAsDataURL(blob);
+    });
+  };
+
   const download = async (resolution: Resolution) => {
     if (!ref.current || !user) return;
     if (!isUnlocked(resolution, userMax)) {
       return toast.error("Upgrade your credits package to unlock this resolution.");
     }
+    const node = ref.current;
+    const originalBg = node.style.background;
     try {
+      // Preload template bg as data URL to avoid CORS taint in html-to-image
+      if (tpl?.image_url) {
+        const dataUrl = await fetchAsDataUrl(tpl.image_url);
+        node.style.background = `url(${dataUrl}) center/cover no-repeat`;
+      }
+
       const { data, error } = await supabase.rpc("spend_credit_for_download", {
         _table_id: null as unknown as string,
         _resolution: resolution,
@@ -155,7 +175,7 @@ function Create() {
           return toast.error("Upgrade your credits package to unlock this resolution.");
         throw error;
       }
-      const dataUrl = await toPng(ref.current, {
+      const dataUrl = await toPng(node, {
         pixelRatio: RES_PIXEL_RATIO[resolution],
         cacheBust: true,
         width: CANVAS_W,
@@ -172,6 +192,8 @@ function Create() {
       await refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Download failed");
+    } finally {
+      node.style.background = originalBg;
     }
   };
 
