@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Users, CreditCard, Package, BarChart3, Check, X, Plus, Trash2, Coins, Image as ImageIcon, Bell, Video, Sparkles, Wand2, Palette, Search, ImagePlus } from "lucide-react";
+import { Users, CreditCard, Package, BarChart3, Check, X, Plus, Trash2, Coins, Image as ImageIcon, Bell, Video, Sparkles, Wand2, Palette, Search, ImagePlus, Megaphone } from "lucide-react";
 import { RESOLUTIONS, type Resolution } from "@/lib/resolutions";
 import { useServerFn } from "@tanstack/react-start";
 import { aiExtractBackground, aiGenerateTemplate, aiGenerateBatch, aiGenerateVariants } from "@/lib/ai-template.functions";
