@@ -270,6 +270,7 @@ export type Database = {
           email: string | null
           id: string
           max_resolution: Database["public"]["Enums"]["resolution_tier"]
+          phone: string | null
           updated_at: string
           username: string | null
         }
@@ -282,6 +283,7 @@ export type Database = {
           email?: string | null
           id: string
           max_resolution?: Database["public"]["Enums"]["resolution_tier"]
+          phone?: string | null
           updated_at?: string
           username?: string | null
         }
@@ -294,6 +296,7 @@ export type Database = {
           email?: string | null
           id?: string
           max_resolution?: Database["public"]["Enums"]["resolution_tier"]
+          phone?: string | null
           updated_at?: string
           username?: string | null
         }
