@@ -45,11 +45,15 @@ function AuthPage() {
     setLoading(true);
     const { error } = await supabase.auth.signUp({
       email, password,
-      options: { emailRedirectTo: window.location.origin, data: { username } },
+      options: { emailRedirectTo: window.location.origin + "/dashboard", data: { username } },
     });
+    if (error) { setLoading(false); return toast.error(error.message); }
+    // Email verification disabled — sign in immediately
+    const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Account created — check your email to confirm.");
+    if (signInErr) return toast.success("Account created. Please sign in.");
+    toast.success("Welcome to Point Arena!");
+    nav({ to: "/dashboard" });
   };
   const google = async () => {
     const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/dashboard" });
