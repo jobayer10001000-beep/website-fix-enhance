@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
+import { AnnouncementModal } from "@/components/announcement-modal";
 
 export const Route = createFileRoute("/_authenticated")({ component: Layout });
 
@@ -77,6 +78,7 @@ function Layout() {
         </div>
       </header>
       <main className="container mx-auto px-4 py-6 sm:py-8"><Outlet /></main>
+      <AnnouncementModal />
     </div>
   );
 }

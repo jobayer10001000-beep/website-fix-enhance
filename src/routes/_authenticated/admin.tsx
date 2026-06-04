@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Users, CreditCard, Package, BarChart3, Check, X, Plus, Trash2, Coins, Image as ImageIcon, Bell, Video, Sparkles, Wand2, Palette, Search, ImagePlus } from "lucide-react";
+import { Users, CreditCard, Package, BarChart3, Check, X, Plus, Trash2, Coins, Image as ImageIcon, Bell, Video, Sparkles, Wand2, Palette, Search, ImagePlus, Megaphone } from "lucide-react";
 import { RESOLUTIONS, type Resolution } from "@/lib/resolutions";
 import { useServerFn } from "@tanstack/react-start";
 import { aiExtractBackground, aiGenerateTemplate, aiGenerateBatch, aiGenerateVariants } from "@/lib/ai-template.functions";
@@ -46,6 +46,7 @@ function AdminPage() {
           <TabsTrigger value="newai"><Palette className="h-4 w-4 mr-1.5" />New AI</TabsTrigger>
           <TabsTrigger value="thumbnails"><ImagePlus className="h-4 w-4 mr-1.5" />Thumbnails</TabsTrigger>
           <TabsTrigger value="notify"><Bell className="h-4 w-4 mr-1.5" />Notify</TabsTrigger>
+          <TabsTrigger value="announce"><Megaphone className="h-4 w-4 mr-1.5" />Announcement</TabsTrigger>
         </TabsList>
         <TabsContent value="analytics"><AnalyticsTab /></TabsContent>
         <TabsContent value="payments"><PaymentsTab /></TabsContent>
@@ -56,6 +57,7 @@ function AdminPage() {
         <TabsContent value="newai"><NewAiTab /></TabsContent>
         <TabsContent value="thumbnails"><ThumbnailAccessTab /></TabsContent>
         <TabsContent value="notify"><NotifyTab /></TabsContent>
+        <TabsContent value="announce"><AnnouncementTab /></TabsContent>
       </Tabs>
     </div>
   );
@@ -805,6 +807,63 @@ function ThumbnailAccessTab() {
             )}
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function AnnouncementTab() {
+  const [text, setText] = useState("");
+  const [currentVersion, setCurrentVersion] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.from("app_settings").select("value").eq("key", "site_announcement").maybeSingle()
+      .then(({ data }) => {
+        const v = (data?.value ?? {}) as { text?: string; version?: string };
+        setText(v.text ?? "");
+        setCurrentVersion(v.version ?? null);
+        setLoading(false);
+      });
+  }, []);
+
+  const save = async () => {
+    if (!text.trim()) return toast.error("Announcement text required");
+    setBusy(true);
+    const value = { text: text.trim(), version: crypto.randomUUID() };
+    const { error } = await supabase.from("app_settings").upsert({ key: "site_announcement", value, updated_at: new Date().toISOString() });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    setCurrentVersion(value.version);
+    toast.success("Announcement published — all users will see it once.");
+  };
+
+  const clear = async () => {
+    if (!confirm("Remove the announcement for all users?")) return;
+    setBusy(true);
+    const { error } = await supabase.from("app_settings").upsert({ key: "site_announcement", value: {}, updated_at: new Date().toISOString() });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    setText("");
+    setCurrentVersion(null);
+    toast.success("Announcement cleared");
+  };
+
+  if (loading) return <div className="mt-6 text-muted-foreground">Loading…</div>;
+
+  return (
+    <div className="mt-6 max-w-xl glass rounded-2xl p-5 space-y-3">
+      <h3 className="font-bold text-lg flex items-center gap-2"><Megaphone className="h-5 w-5" />Site Announcement</h3>
+      <p className="text-xs text-muted-foreground">Shown as a popup on every user's first visit until they click "Got it". Publishing again resets it so all users see the new message once.</p>
+      <div>
+        <Label>Announcement Text</Label>
+        <Textarea rows={6} value={text} onChange={(e) => setText(e.target.value)} placeholder="Welcome to Point Arena! Please read our rules…" />
+      </div>
+      {currentVersion && <div className="text-[11px] text-muted-foreground">Active version: {currentVersion.slice(0, 8)}</div>}
+      <div className="flex gap-2">
+        <Button onClick={save} disabled={busy} className="flex-1 neon-border">{busy ? "Saving…" : "Publish announcement"}</Button>
+        {currentVersion && <Button onClick={clear} disabled={busy} variant="outline">Clear</Button>}
       </div>
     </div>
   );
