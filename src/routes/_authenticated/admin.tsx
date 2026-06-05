@@ -814,58 +814,223 @@ function ThumbnailAccessTab() {
   );
 }
 
+type Ann = {
+  id: string;
+  title: string;
+  body: string;
+  bg_color: string;
+  text_color: string;
+  audience: "all" | "admin" | "user";
+  active: boolean;
+  created_at: string;
+};
+
 function AnnouncementTab() {
-  const [text, setText] = useState("");
-  const [currentVersion, setCurrentVersion] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [list, setList] = useState<Ann[]>([]);
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState({
+    title: "",
+    body: "",
+    bg_color: "#0c1c3e",
+    text_color: "#ffffff",
+    audience: "all" as Ann["audience"],
+  });
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("announcements").select("*").order("created_at", { ascending: false });
+    setLoading(false);
+    if (error) return toast.error(error.message);
+    setList((data ?? []) as Ann[]);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const create = async () => {
+    if (!draft.title.trim() || !draft.body.trim()) return toast.error("Title & body required");
+    setBusy(true);
+    const { error } = await supabase.from("announcements").insert({
+      title: draft.title.trim(), body: draft.body.trim(),
+      bg_color: draft.bg_color, text_color: draft.text_color, audience: draft.audience, active: true,
+    });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    setDraft({ title: "", body: "", bg_color: "#0c1c3e", text_color: "#ffffff", audience: "all" });
+    toast.success("Announcement published");
+    load();
+  };
+  const toggle = async (a: Ann) => {
+    const { error } = await supabase.from("announcements").update({ active: !a.active }).eq("id", a.id);
+    if (error) return toast.error(error.message);
+    load();
+  };
+  const remove = async (id: string) => {
+    if (!confirm("Delete this announcement?")) return;
+    const { error } = await supabase.from("announcements").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    load();
+  };
+
+  return (
+    <div className="mt-6 grid gap-6 lg:grid-cols-[420px_1fr]">
+      <div className="glass rounded-2xl p-5 space-y-3">
+        <h3 className="font-bold text-lg flex items-center gap-2"><Megaphone className="h-5 w-5" />New Announcement</h3>
+        <div>
+          <Label>Title</Label>
+          <Input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Important update" />
+        </div>
+        <div>
+          <Label>Body</Label>
+          <Textarea rows={5} value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} placeholder="Your message…" />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label>Background</Label>
+            <div className="flex gap-2 items-center">
+              <Input type="color" value={draft.bg_color} onChange={(e) => setDraft({ ...draft, bg_color: e.target.value })} className="w-14 h-10 p-1" />
+              <Input value={draft.bg_color} onChange={(e) => setDraft({ ...draft, bg_color: e.target.value })} />
+            </div>
+          </div>
+          <div>
+            <Label>Text Color</Label>
+            <div className="flex gap-2 items-center">
+              <Input type="color" value={draft.text_color} onChange={(e) => setDraft({ ...draft, text_color: e.target.value })} className="w-14 h-10 p-1" />
+              <Input value={draft.text_color} onChange={(e) => setDraft({ ...draft, text_color: e.target.value })} />
+            </div>
+          </div>
+        </div>
+        <div>
+          <Label>Audience</Label>
+          <Select value={draft.audience} onValueChange={(v) => setDraft({ ...draft, audience: v as Ann["audience"] })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Everyone</SelectItem>
+              <SelectItem value="user">Regular users only</SelectItem>
+              <SelectItem value="admin">Admins only</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="rounded-lg p-4 border" style={{ background: draft.bg_color, color: draft.text_color }}>
+          <div className="font-bold flex items-center gap-2"><Megaphone className="h-4 w-4" />{draft.title || "Preview title"}</div>
+          <div className="text-sm mt-1 whitespace-pre-wrap opacity-95">{draft.body || "Preview body…"}</div>
+        </div>
+        <Button onClick={create} disabled={busy} className="w-full neon-border">{busy ? "Publishing…" : "Publish"}</Button>
+      </div>
+
+      <div className="space-y-3">
+        <h3 className="font-bold text-lg">Published</h3>
+        {loading ? <div className="text-muted-foreground">Loading…</div> :
+          list.length === 0 ? <div className="text-muted-foreground text-sm">No announcements yet.</div> :
+          list.map((a) => (
+            <div key={a.id} className="glass rounded-xl p-4 flex flex-wrap items-start gap-3">
+              <div className="flex-1 min-w-[200px]">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold">{a.title}</span>
+                  <Badge variant="outline" className="capitalize">{a.audience}</Badge>
+                  {a.active ? <Badge>Active</Badge> : <Badge variant="secondary">Off</Badge>}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap line-clamp-2">{a.body}</div>
+                <div className="mt-2 inline-flex items-center gap-2 px-2 py-1 rounded text-[11px]" style={{ background: a.bg_color, color: a.text_color }}>
+                  swatch preview
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => toggle(a)}>{a.active ? "Disable" : "Enable"}</Button>
+                <Button size="sm" variant="destructive" onClick={() => remove(a.id)}><Trash2 className="h-4 w-4" /></Button>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  );
+}
+
+type ThemeVals = {
+  background?: string; foreground?: string; primary?: string; primary_foreground?: string;
+  accent?: string; card?: string; border?: string;
+};
+
+const THEME_FIELDS: { key: keyof ThemeVals; label: string; placeholder: string }[] = [
+  { key: "background", label: "Background", placeholder: "#0a0f1e or oklch(0.16 0.03 250)" },
+  { key: "foreground", label: "Foreground / Text", placeholder: "#ffffff" },
+  { key: "primary", label: "Primary (accent green)", placeholder: "#34d399" },
+  { key: "primary_foreground", label: "Primary text", placeholder: "#0a0f1e" },
+  { key: "accent", label: "Accent", placeholder: "#a78bfa" },
+  { key: "card", label: "Card surface", placeholder: "#15203a" },
+  { key: "border", label: "Border", placeholder: "#1f2a44" },
+];
+
+function ThemeTab() {
+  const [vals, setVals] = useState<ThemeVals>({});
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    supabase.from("app_settings").select("value").eq("key", "site_announcement").maybeSingle()
+    supabase.from("app_settings").select("value").eq("key", "site_theme").maybeSingle()
       .then(({ data }) => {
-        const v = (data?.value ?? {}) as { text?: string; version?: string };
-        setText(v.text ?? "");
-        setCurrentVersion(v.version ?? null);
+        setVals((data?.value ?? {}) as ThemeVals);
         setLoading(false);
       });
   }, []);
 
   const save = async () => {
-    if (!text.trim()) return toast.error("Announcement text required");
     setBusy(true);
-    const value = { text: text.trim(), version: crypto.randomUUID() };
-    const { error } = await supabase.from("app_settings").upsert({ key: "site_announcement", value, updated_at: new Date().toISOString() });
+    const cleaned: ThemeVals = {};
+    (Object.keys(vals) as (keyof ThemeVals)[]).forEach((k) => {
+      const v = vals[k]?.trim();
+      if (v) cleaned[k] = v;
+    });
+    const { error } = await supabase.from("app_settings")
+      .upsert({ key: "site_theme", value: cleaned, updated_at: new Date().toISOString() });
     setBusy(false);
     if (error) return toast.error(error.message);
-    setCurrentVersion(value.version);
-    toast.success("Announcement published — all users will see it once.");
+    toast.success("Theme applied site-wide");
   };
-
-  const clear = async () => {
-    if (!confirm("Remove the announcement for all users?")) return;
+  const reset = async () => {
+    if (!confirm("Reset theme to defaults?")) return;
     setBusy(true);
-    const { error } = await supabase.from("app_settings").upsert({ key: "site_announcement", value: {}, updated_at: new Date().toISOString() });
+    const { error } = await supabase.from("app_settings")
+      .upsert({ key: "site_theme", value: {}, updated_at: new Date().toISOString() });
     setBusy(false);
     if (error) return toast.error(error.message);
-    setText("");
-    setCurrentVersion(null);
-    toast.success("Announcement cleared");
+    setVals({});
+    toast.success("Theme reset");
   };
 
   if (loading) return <div className="mt-6 text-muted-foreground">Loading…</div>;
-
   return (
-    <div className="mt-6 max-w-xl glass rounded-2xl p-5 space-y-3">
-      <h3 className="font-bold text-lg flex items-center gap-2"><Megaphone className="h-5 w-5" />Site Announcement</h3>
-      <p className="text-xs text-muted-foreground">Shown as a popup on every user's first visit until they click "Got it". Publishing again resets it so all users see the new message once.</p>
+    <div className="mt-6 max-w-2xl glass rounded-2xl p-5 space-y-4">
       <div>
-        <Label>Announcement Text</Label>
-        <Textarea rows={6} value={text} onChange={(e) => setText(e.target.value)} placeholder="Welcome to Point Arena! Please read our rules…" />
+        <h3 className="font-bold text-lg flex items-center gap-2"><Paintbrush className="h-5 w-5" />Site Theme</h3>
+        <p className="text-xs text-muted-foreground mt-1">
+          Override the site-wide colors. Accepts hex (#0a0f1e), rgb(), or oklch(). Leave a field blank to use the default.
+        </p>
       </div>
-      {currentVersion && <div className="text-[11px] text-muted-foreground">Active version: {currentVersion.slice(0, 8)}</div>}
+      <div className="grid sm:grid-cols-2 gap-3">
+        {THEME_FIELDS.map((f) => (
+          <div key={f.key}>
+            <Label>{f.label}</Label>
+            <div className="flex gap-2 items-center mt-1">
+              <Input
+                type="color"
+                value={(vals[f.key] && /^#[0-9a-fA-F]{6}$/.test(vals[f.key]!)) ? vals[f.key] : "#000000"}
+                onChange={(e) => setVals({ ...vals, [f.key]: e.target.value })}
+                className="w-14 h-10 p-1"
+              />
+              <Input
+                value={vals[f.key] ?? ""}
+                placeholder={f.placeholder}
+                onChange={(e) => setVals({ ...vals, [f.key]: e.target.value })}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
       <div className="flex gap-2">
-        <Button onClick={save} disabled={busy} className="flex-1 neon-border">{busy ? "Saving…" : "Publish announcement"}</Button>
-        {currentVersion && <Button onClick={clear} disabled={busy} variant="outline">Clear</Button>}
+        <Button onClick={save} disabled={busy} className="flex-1 neon-border">{busy ? "Saving…" : "Apply theme"}</Button>
+        <Button onClick={reset} disabled={busy} variant="outline">Reset</Button>
       </div>
     </div>
   );
