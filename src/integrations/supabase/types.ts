@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcements: {
+        Row: {
+          active: boolean
+          audience: Database["public"]["Enums"]["announcement_audience"]
+          bg_color: string
+          body: string
+          created_at: string
+          id: string
+          text_color: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          audience?: Database["public"]["Enums"]["announcement_audience"]
+          bg_color?: string
+          body: string
+          created_at?: string
+          id?: string
+          text_color?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          audience?: Database["public"]["Enums"]["announcement_audience"]
+          bg_color?: string
+          body?: string
+          created_at?: string
+          id?: string
+          text_color?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           key: string
@@ -430,6 +466,7 @@ export type Database = {
       }
     }
     Enums: {
+      announcement_audience: "all" | "admin" | "user"
       app_role: "admin" | "user"
       payment_method: "bkash" | "nagad"
       payment_status: "pending" | "approved" | "rejected"
@@ -561,6 +598,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      announcement_audience: ["all", "admin", "user"],
       app_role: ["admin", "user"],
       payment_method: ["bkash", "nagad"],
       payment_status: ["pending", "approved", "rejected"],
