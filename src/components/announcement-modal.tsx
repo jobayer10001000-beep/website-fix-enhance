@@ -4,46 +4,71 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Megaphone } from "lucide-react";
 
-type Announcement = { text: string; version: string };
+type Announcement = {
+  id: string;
+  title: string;
+  body: string;
+  bg_color: string;
+  text_color: string;
+  updated_at: string;
+};
 
-const STORAGE_KEY = "pa_announcement_seen";
+const STORAGE_KEY = "pa_announcements_seen_v2";
+
+const getSeen = (): Record<string, string> => {
+  if (typeof window === "undefined") return {};
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}"); } catch { return {}; }
+};
+const markSeen = (id: string, updated_at: string) => {
+  const s = getSeen(); s[id] = updated_at;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+};
 
 export function AnnouncementModal() {
-  const [ann, setAnn] = useState<Announcement | null>(null);
-  const [open, setOpen] = useState(false);
+  const [queue, setQueue] = useState<Announcement[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-    supabase.from("app_settings").select("value").eq("key", "site_announcement").maybeSingle()
+    supabase.from("announcements").select("id,title,body,bg_color,text_color,updated_at")
+      .eq("active", true).order("created_at", { ascending: false })
       .then(({ data }) => {
-        if (cancelled || !data?.value) return;
-        const v = data.value as Partial<Announcement>;
-        if (!v.text || !v.version) return;
-        const seen = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
-        if (seen === v.version) return;
-        setAnn({ text: v.text, version: v.version });
-        setOpen(true);
+        if (cancelled || !data) return;
+        const seen = getSeen();
+        const unseen = (data as Announcement[]).filter((a) => seen[a.id] !== a.updated_at);
+        setQueue(unseen);
       });
     return () => { cancelled = true; };
   }, []);
 
+  const current = queue[0] ?? null;
   const dismiss = () => {
-    if (ann) localStorage.setItem(STORAGE_KEY, ann.version);
-    setOpen(false);
+    if (current) markSeen(current.id, current.updated_at);
+    setQueue((q) => q.slice(1));
   };
 
-  if (!ann) return null;
+  if (!current) return null;
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) dismiss(); }}>
-      <DialogContent className="max-w-md">
+    <Dialog open onOpenChange={(o) => { if (!o) dismiss(); }}>
+      <DialogContent
+        className="max-w-md border-0"
+        style={{ background: current.bg_color, color: current.text_color }}
+      >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Megaphone className="h-5 w-5 text-primary" /> Announcement
+          <DialogTitle className="flex items-center gap-2" style={{ color: current.text_color }}>
+            <Megaphone className="h-5 w-5" /> {current.title}
           </DialogTitle>
         </DialogHeader>
-        <div className="whitespace-pre-wrap text-sm leading-relaxed py-2">{ann.text}</div>
+        <div className="whitespace-pre-wrap text-sm leading-relaxed py-2" style={{ color: current.text_color, opacity: 0.95 }}>
+          {current.body}
+        </div>
         <DialogFooter>
-          <Button className="w-full neon-border" onClick={dismiss}>Got it</Button>
+          <Button
+            className="w-full"
+            onClick={dismiss}
+            style={{ background: current.text_color, color: current.bg_color }}
+          >
+            Got it
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
