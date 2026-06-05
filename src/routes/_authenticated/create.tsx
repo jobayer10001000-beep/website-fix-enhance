@@ -138,16 +138,20 @@ function Create() {
     loadUserThumbs();
   };
 
-  const fetchAsDataUrl = async (url: string): Promise<string> => {
-    const res = await fetch(url, { mode: "cors", cache: "no-store" });
-    if (!res.ok) throw new Error("Failed to load template image");
-    const blob = await res.blob();
-    return await new Promise((resolve, reject) => {
-      const r = new FileReader();
-      r.onload = () => resolve(r.result as string);
-      r.onerror = () => reject(new Error("Failed to read image"));
-      r.readAsDataURL(blob);
-    });
+  const fetchAsDataUrl = async (url: string): Promise<string | null> => {
+    try {
+      const res = await fetch(url, { mode: "cors", cache: "no-store" });
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return await new Promise((resolve) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result as string);
+        r.onerror = () => resolve(null);
+        r.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
   };
 
   const download = async (resolution: Resolution) => {
@@ -155,14 +159,29 @@ function Create() {
     if (!isUnlocked(resolution, userMax)) {
       return toast.error("Upgrade your credits package to unlock this resolution.");
     }
+    if (credits <= 0) {
+      return toast.error("You need credits to download. Buy a pack from the Credits page.");
+    }
     const node = ref.current;
     const originalBg = node.style.background;
     try {
-      // Preload template bg as data URL to avoid CORS taint in html-to-image
+      // Try to preload bg as data URL to avoid CORS taint; if it fails, continue anyway
       if (tpl?.image_url) {
         const dataUrl = await fetchAsDataUrl(tpl.image_url);
-        node.style.background = `url(${dataUrl}) center/cover no-repeat`;
+        if (dataUrl) {
+          node.style.background = `url(${dataUrl}) center/cover no-repeat`;
+        }
       }
+
+      // Render FIRST so we never spend a credit on a failed render
+      const pngDataUrl = await toPng(node, {
+        pixelRatio: RES_PIXEL_RATIO[resolution],
+        cacheBust: true,
+        width: CANVAS_W,
+        height: CANVAS_H,
+        style: { transform: "none" },
+        fetchRequestInit: { mode: "cors", cache: "no-store" },
+      });
 
       const { data, error } = await supabase.rpc("spend_credit_for_download", {
         _table_id: null as unknown as string,
@@ -175,19 +194,13 @@ function Create() {
           return toast.error("Upgrade your credits package to unlock this resolution.");
         throw error;
       }
-      const dataUrl = await toPng(node, {
-        pixelRatio: RES_PIXEL_RATIO[resolution],
-        cacheBust: true,
-        width: CANVAS_W,
-        height: CANVAS_H,
-        style: { transform: "none" },
-      });
+
       await supabase.from("point_tables").insert({
         user_id: user.id, tournament_name: tournament, data: { rows: ranked },
       });
       const a = document.createElement("a");
-      a.href = dataUrl; a.download = `${tournament.replace(/\s+/g, "_")}_${resolution}.png`; a.click();
-      toast.success(`Downloaded! ${data} credits left.`);
+      a.href = pngDataUrl; a.download = `${tournament.replace(/\s+/g, "_")}_${resolution}.png`; a.click();
+      toast.success(typeof data === "number" ? `Downloaded! ${data} credits left.` : "Downloaded!");
       setPickerOpen(false);
       await refresh();
     } catch (e) {
