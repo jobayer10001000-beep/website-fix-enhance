@@ -177,13 +177,11 @@ function Create() {
     const node = ref.current!;
     const originalBg = node.style.background;
     // Try to inline bg as data URL to avoid CORS taint
-    let appliedDataBg = false;
     try {
       if (tpl?.image_url) {
         const dataUrl = await fetchAsDataUrl(tpl.image_url);
         if (dataUrl) {
           node.style.background = `url(${dataUrl}) center/cover no-repeat`;
-          appliedDataBg = true;
         }
       }
       const opts = {
@@ -206,7 +204,7 @@ function Create() {
         }
       }
     } finally {
-      if (appliedDataBg) node.style.background = originalBg;
+      node.style.background = originalBg;
     }
   };
 
