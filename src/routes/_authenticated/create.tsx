@@ -177,13 +177,11 @@ function Create() {
     const node = ref.current!;
     const originalBg = node.style.background;
     // Try to inline bg as data URL to avoid CORS taint
-    let appliedDataBg = false;
     try {
       if (tpl?.image_url) {
         const dataUrl = await fetchAsDataUrl(tpl.image_url);
         if (dataUrl) {
           node.style.background = `url(${dataUrl}) center/cover no-repeat`;
-          appliedDataBg = true;
         }
       }
       const opts = {
@@ -206,8 +204,124 @@ function Create() {
         }
       }
     } finally {
-      if (appliedDataBg) node.style.background = originalBg;
+      node.style.background = originalBg;
     }
+  };
+
+  const loadImageSafe = (src: string): Promise<HTMLImageElement | null> => new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+
+  const drawFallbackPng = async (resolution: Resolution): Promise<string> => {
+    const ratio = RES_PIXEL_RATIO[resolution];
+    const canvas = document.createElement("canvas");
+    canvas.width = CANVAS_W * ratio;
+    canvas.height = CANVAS_H * ratio;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas unavailable");
+    ctx.scale(ratio, ratio);
+
+    const bg = ctx.createRadialGradient(CANVAS_W / 2, 0, 40, CANVAS_W / 2, CANVAS_H / 2, CANVAS_H);
+    bg.addColorStop(0, "#0c1c3e");
+    bg.addColorStop(1, "#050813");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    const bgData = tpl?.image_url ? await fetchAsDataUrl(tpl.image_url) : null;
+    const bgImg = bgData ? await loadImageSafe(bgData) : null;
+    if (bgImg) ctx.drawImage(bgImg, 0, 0, CANVAS_W, CANVAS_H);
+
+    let y = 112;
+    if (tournamentLogo) {
+      const logo = await loadImageSafe(tournamentLogo);
+      if (logo) {
+        const h = tournamentLogoSize;
+        const w = Math.min(CANVAS_W - 160, h * (logo.naturalWidth / Math.max(1, logo.naturalHeight)));
+        ctx.drawImage(logo, (CANVAS_W - w) / 2, y - 32, w, h);
+        y += h + 34;
+      }
+    }
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = accent;
+    ctx.shadowColor = `${accent}99`;
+    ctx.shadowBlur = 24;
+    ctx.font = "900 64px Arial, sans-serif";
+    ctx.fillText(tournament.slice(0, 34), CANVAS_W / 2, y);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = textColor;
+    ctx.globalAlpha = 0.85;
+    ctx.font = "700 18px Arial, sans-serif";
+    ctx.fillText("OFFICIAL POINT TABLE", CANVAS_W / 2, y + 40);
+    ctx.globalAlpha = 1;
+
+    const tableX = 80;
+    const tableY = y + 110;
+    const tableW = CANVAS_W - 160;
+    ctx.fillStyle = "rgba(0,0,0,0.42)";
+    ctx.fillRect(tableX, tableY, tableW, 74 + ranked.length * 64);
+    ctx.strokeStyle = `${accent}66`;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(tableX, tableY, tableW, 74 + ranked.length * 64);
+
+    ctx.fillStyle = `${tagColor}26`;
+    ctx.fillRect(tableX, tableY, tableW, 74);
+    ctx.fillStyle = tagColor;
+    ctx.font = "800 18px Arial, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("RANK", tableX + 26, tableY + 46);
+    ctx.fillText("LOGO", tableX + 128, tableY + 46);
+    ctx.fillText("TEAM", tableX + 210, tableY + 46);
+    ctx.textAlign = "center";
+    ctx.fillText("KILLS", tableX + tableW - 330, tableY + 46);
+    ctx.fillText("POS", tableX + tableW - 220, tableY + 46);
+    ctx.textAlign = "right";
+    ctx.fillText("TOTAL", tableX + tableW - 26, tableY + 46);
+
+    const fitText = (value: string, max: number) => {
+      let text = value || "Team";
+      while (ctx.measureText(text).width > max && text.length > 4) text = `${text.slice(0, -4)}...`;
+      return text;
+    };
+
+    for (const [i, row] of ranked.entries()) {
+      const rowY = tableY + 74 + i * 64;
+      ctx.fillStyle = i === 0 ? `${tagColor}18` : "rgba(255,255,255,0.02)";
+      ctx.fillRect(tableX, rowY, tableW, 64);
+      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      ctx.beginPath();
+      ctx.moveTo(tableX, rowY);
+      ctx.lineTo(tableX + tableW, rowY);
+      ctx.stroke();
+
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = i === 0 ? tagColor : textColor;
+      ctx.font = "900 24px Arial, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(`#${i + 1}`, tableX + 26, rowY + 32);
+
+      if (row.logo) {
+        const logo = await loadImageSafe(row.logo);
+        if (logo) ctx.drawImage(logo, tableX + 122, rowY + 8, 48, 48);
+      }
+
+      ctx.fillStyle = textColor;
+      ctx.font = "700 22px Arial, sans-serif";
+      ctx.fillText(fitText(row.name, 360), tableX + 210, rowY + 32);
+      ctx.textAlign = "center";
+      ctx.fillText(String(row.kills), tableX + tableW - 330, rowY + 32);
+      ctx.fillText(String(row.pos), tableX + tableW - 220, rowY + 32);
+      ctx.textAlign = "right";
+      ctx.fillStyle = tagColor;
+      ctx.font = "800 22px Arial, sans-serif";
+      ctx.fillText(String(row.total), tableX + tableW - 26, rowY + 32);
+    }
+
+    return canvas.toDataURL("image/png");
   };
 
   const download = async (resolution: Resolution) => {
@@ -219,7 +333,7 @@ function Create() {
       return toast.error("You need credits to download. Buy a pack from the Credits page.");
     }
     try {
-      const pngDataUrl = await renderPng(resolution);
+      const pngDataUrl = await renderPng(resolution).catch(() => drawFallbackPng(resolution));
 
       const { data, error } = await supabase.rpc("spend_credit_for_download", {
         _table_id: null as unknown as string,
@@ -233,16 +347,21 @@ function Create() {
         throw error;
       }
 
-      await supabase.from("point_tables").insert({
-        user_id: user.id, tournament_name: tournament, data: { rows: ranked },
-      });
       const a = document.createElement("a");
       a.href = pngDataUrl; a.download = `${tournament.replace(/\s+/g, "_")}_${resolution}.png`; a.click();
+
+      const safeRows = ranked.map(({ name, kills, pos, total, idx }) => ({ name, kills, pos, total, idx }));
+      supabase.from("point_tables").insert({
+        user_id: user.id, tournament_name: tournament, data: { rows: safeRows },
+      }).then(({ error: saveError }) => {
+        if (saveError) console.warn("Point table history save skipped:", saveError.message);
+      });
+
       toast.success(typeof data === "number" ? `Downloaded! ${data} credits left.` : "Downloaded!");
       setPickerOpen(false);
       await refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Download failed");
+      toast.error(e instanceof Error && e.message ? e.message : "Unable to download. Please try again.");
     }
   };
 
