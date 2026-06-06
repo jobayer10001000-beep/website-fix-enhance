@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Download, Lock, Sparkles, Upload, Trash2 } from "lucide-react";
+import { Download, Lock, Sparkles, Upload, Trash2, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { RESOLUTIONS, RES_PIXEL_RATIO, RES_LABEL, isUnlocked, type Resolution } from "@/lib/resolutions";
 
@@ -18,30 +18,25 @@ export const Route = createFileRoute("/_authenticated/create")({
       { property: "og:title", content: "Create Point Table — Point Arena" },
       { property: "og:description", content: "Build live esports point tables and download HD images for your tournament." },
     ],
-    scripts: [
-      {
-        type: "application/ld+json",
-        children: JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "SoftwareApplication",
-          name: "Point Arena Point Table Generator",
-          applicationCategory: "DesignApplication",
-          operatingSystem: "Web",
-          offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-        }),
-      },
-    ],
   }),
   component: Create,
 });
 
-type Row = { name: string; kills: number; pos: number };
+type Row = { name: string; kills: number; pos: number; logo?: string | null };
 type Template = { id: string; name: string; image_url: string; accent_color: string; premium: boolean; isUser?: boolean; locked?: boolean; storage_path?: string };
 
 const CANVAS_W = 1080;
 const CANVAS_H = 1350;
-// Background used when "None" template is selected — matches the site's dark theme
 const NONE_BG = "radial-gradient(ellipse at top, #0c1c3e 0%, #050813 70%)";
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result as string);
+    r.onerror = () => reject(new Error("read failed"));
+    r.readAsDataURL(file);
+  });
+}
 
 function Create() {
   const { user, profile, refresh } = useAuth();
@@ -52,8 +47,10 @@ function Create() {
   const [tournament, setTournament] = useState("Point Arena Championship");
   const [textColor, setTextColor] = useState("#ffffff");
   const [tagColor, setTagColor] = useState("#f59e0b");
+  const [tournamentLogo, setTournamentLogo] = useState<string | null>(null);
+  const [tournamentLogoSize, setTournamentLogoSize] = useState(140);
   const [rows, setRows] = useState<Row[]>(
-    Array.from({ length: 12 }, (_, i) => ({ name: `Team ${i + 1}`, kills: 0, pos: 0 })),
+    Array.from({ length: 12 }, (_, i) => ({ name: `Team ${i + 1}`, kills: 0, pos: 0, logo: null })),
   );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -74,9 +71,8 @@ function Create() {
       .select("id,name,image_url,accent_color").eq("user_id", user.id)
       .order("created_at", { ascending: false });
     if (!data) return;
-    // Generate signed URLs for private bucket
     const enriched = await Promise.all(data.map(async (t) => {
-      const path = t.image_url; // we store the storage path
+      const path = t.image_url;
       const { data: signed } = await supabase.storage.from("user-thumbnails").createSignedUrl(path, 3600);
       return {
         id: t.id, name: t.name, accent_color: t.accent_color, premium: false,
@@ -93,7 +89,6 @@ function Create() {
 
   const allTpls = useMemo(() => [...userTpls, ...templates], [userTpls, templates]);
   const tpl = allTpls.find((t) => t.id === tplId) ?? null;
-  // If selected user thumbnail becomes locked, deselect
   useEffect(() => {
     if (tpl?.isUser && tpl.locked) setTplId(null);
   }, [tpl]);
@@ -138,6 +133,30 @@ function Create() {
     loadUserThumbs();
   };
 
+  const handleTeamLogo = async (i: number, file: File | undefined) => {
+    if (!file) return;
+    if (!canUpload) return toast.error("Logo upload is a premium feature.");
+    if (file.size > 3 * 1024 * 1024) return toast.error("Logo max 3MB");
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      update(i, { logo: dataUrl });
+    } catch {
+      toast.error("Failed to read logo");
+    }
+  };
+
+  const handleTournamentLogo = async (file: File | undefined) => {
+    if (!file) return;
+    if (!canUpload) return toast.error("Logo upload is a premium feature.");
+    if (file.size > 5 * 1024 * 1024) return toast.error("Logo max 5MB");
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setTournamentLogo(dataUrl);
+    } catch {
+      toast.error("Failed to read logo");
+    }
+  };
+
   const fetchAsDataUrl = async (url: string): Promise<string | null> => {
     try {
       const res = await fetch(url, { mode: "cors", cache: "no-store" });
@@ -154,6 +173,43 @@ function Create() {
     }
   };
 
+  const renderPng = async (resolution: Resolution): Promise<string> => {
+    const node = ref.current!;
+    const originalBg = node.style.background;
+    // Try to inline bg as data URL to avoid CORS taint
+    let appliedDataBg = false;
+    try {
+      if (tpl?.image_url) {
+        const dataUrl = await fetchAsDataUrl(tpl.image_url);
+        if (dataUrl) {
+          node.style.background = `url(${dataUrl}) center/cover no-repeat`;
+          appliedDataBg = true;
+        }
+      }
+      const opts = {
+        pixelRatio: RES_PIXEL_RATIO[resolution],
+        cacheBust: true,
+        width: CANVAS_W,
+        height: CANVAS_H,
+        style: { transform: "none" },
+        fetchRequestInit: { mode: "cors" as RequestMode, cache: "no-store" as RequestCache },
+      };
+      try {
+        return await toPng(node, opts);
+      } catch (firstErr) {
+        // Fallback: drop the (possibly tainted) background and retry
+        node.style.background = NONE_BG;
+        try {
+          return await toPng(node, opts);
+        } catch (secondErr) {
+          throw firstErr instanceof Error ? firstErr : secondErr;
+        }
+      }
+    } finally {
+      if (appliedDataBg) node.style.background = originalBg;
+    }
+  };
+
   const download = async (resolution: Resolution) => {
     if (!ref.current || !user) return;
     if (!isUnlocked(resolution, userMax)) {
@@ -162,26 +218,8 @@ function Create() {
     if (credits <= 0) {
       return toast.error("You need credits to download. Buy a pack from the Credits page.");
     }
-    const node = ref.current;
-    const originalBg = node.style.background;
     try {
-      // Try to preload bg as data URL to avoid CORS taint; if it fails, continue anyway
-      if (tpl?.image_url) {
-        const dataUrl = await fetchAsDataUrl(tpl.image_url);
-        if (dataUrl) {
-          node.style.background = `url(${dataUrl}) center/cover no-repeat`;
-        }
-      }
-
-      // Render FIRST so we never spend a credit on a failed render
-      const pngDataUrl = await toPng(node, {
-        pixelRatio: RES_PIXEL_RATIO[resolution],
-        cacheBust: true,
-        width: CANVAS_W,
-        height: CANVAS_H,
-        style: { transform: "none" },
-        fetchRequestInit: { mode: "cors", cache: "no-store" },
-      });
+      const pngDataUrl = await renderPng(resolution);
 
       const { data, error } = await supabase.rpc("spend_credit_for_download", {
         _table_id: null as unknown as string,
@@ -205,8 +243,6 @@ function Create() {
       await refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Download failed");
-    } finally {
-      node.style.background = originalBg;
     }
   };
 
@@ -220,6 +256,43 @@ function Create() {
           <label className="text-sm text-muted-foreground">Tournament Name</label>
           <Input value={tournament} onChange={(e) => setTournament(e.target.value)} className="mt-1" />
         </div>
+
+        {/* Tournament logo (premium) */}
+        <div>
+          <label className="text-sm text-muted-foreground flex items-center gap-2">
+            Tournament Logo {!canUpload && <Lock className="h-3 w-3" />}
+            <span className="text-[10px] uppercase tracking-wider text-primary">Premium</span>
+          </label>
+          <div className="mt-1 flex items-center gap-2">
+            <label className="flex-1">
+              <input
+                type="file" accept="image/*" hidden
+                disabled={!canUpload}
+                onChange={(e) => { handleTournamentLogo(e.target.files?.[0]); e.target.value = ""; }}
+              />
+              <Button asChild variant="outline" size="sm" className="w-full cursor-pointer" disabled={!canUpload}>
+                <span><ImagePlus className="h-4 w-4 mr-1.5" />{tournamentLogo ? "Replace logo" : "Upload logo"}</span>
+              </Button>
+            </label>
+            {tournamentLogo && (
+              <Button variant="ghost" size="icon" onClick={() => setTournamentLogo(null)} aria-label="Remove logo">
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          {tournamentLogo && (
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-xs text-muted-foreground w-10">Size</span>
+              <input
+                type="range" min={60} max={400} value={tournamentLogoSize}
+                onChange={(e) => setTournamentLogoSize(Number(e.target.value))}
+                className="flex-1 accent-primary"
+              />
+              <span className="text-xs text-muted-foreground w-10 text-right">{tournamentLogoSize}px</span>
+            </div>
+          )}
+        </div>
+
         <div>
           <label className="text-sm text-muted-foreground">Text Color (all text)</label>
           <div className="flex gap-2 items-center mt-1">
@@ -287,9 +360,32 @@ function Create() {
             ))}
           </div>
         </div>
+
         <div className="max-h-[60vh] overflow-y-auto space-y-2 pr-1">
           {rows.map((r, i) => (
-            <div key={i} className="grid grid-cols-[1fr_60px_60px] gap-2">
+            <div key={i} className="grid grid-cols-[40px_1fr_56px_56px] gap-2 items-center">
+              <label
+                className={`relative h-10 w-10 rounded border border-border flex items-center justify-center overflow-hidden ${canUpload ? "cursor-pointer hover:border-primary" : "opacity-60 cursor-not-allowed"}`}
+                title={canUpload ? "Upload team logo (premium)" : "Premium feature"}
+              >
+                <input
+                  type="file" accept="image/*" hidden disabled={!canUpload}
+                  onChange={(e) => { handleTeamLogo(i, e.target.files?.[0]); e.target.value = ""; }}
+                />
+                {r.logo ? (
+                  <>
+                    <img src={r.logo} alt="" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); update(i, { logo: null }); }}
+                      className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5"
+                      aria-label="Remove logo"
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </>
+                ) : canUpload ? <ImagePlus className="h-4 w-4 text-muted-foreground" /> : <Lock className="h-3 w-3 text-muted-foreground" />}
+              </label>
               <Input value={r.name} onChange={(e) => update(i, { name: e.target.value })} placeholder={`Team ${i + 1}`} />
               <Input type="number" min={0} value={r.kills} onChange={(e) => update(i, { kills: Number(e.target.value) || 0 })} placeholder="K" />
               <Input type="number" min={0} value={r.pos} onChange={(e) => update(i, { pos: Number(e.target.value) || 0 })} placeholder="P" />
@@ -333,6 +429,16 @@ function Create() {
         tpl={tpl}
         textColor={textColor}
       >
+        {tournamentLogo && (
+          <div className="flex justify-center mb-4">
+            <img
+              src={tournamentLogo}
+              alt="Tournament logo"
+              style={{ height: tournamentLogoSize, width: "auto", objectFit: "contain" }}
+              crossOrigin="anonymous"
+            />
+          </div>
+        )}
         <h2 className="text-center font-black tracking-tight"
           style={{ color: accent, textShadow: `0 0 24px ${accent}80`, fontSize: 64 }}>
           {tournament}
@@ -347,13 +453,20 @@ function Create() {
                   border: `1px solid ${accent}40`,
                 }}>
                 <div className="grid items-center px-6 py-4 font-bold uppercase"
-                  style={{ gridTemplateColumns: "90px 1fr 110px 110px 130px", fontSize: 18, color: tagColor, background: `${tagColor}1A`, letterSpacing: 2 }}>
-                  <div>Rank</div><div>Team</div><div className="text-center">Kills</div><div className="text-center">Pos</div><div className="text-right">Total</div>
+                  style={{ gridTemplateColumns: "90px 70px 1fr 110px 110px 130px", fontSize: 18, color: tagColor, background: `${tagColor}1A`, letterSpacing: 2 }}>
+                  <div>Rank</div><div>Logo</div><div>Team</div><div className="text-center">Kills</div><div className="text-center">Pos</div><div className="text-right">Total</div>
                 </div>
                 {ranked.map((r, i) => (
                   <div key={r.idx} className="grid items-center px-6 py-3"
-                    style={{ gridTemplateColumns: "90px 1fr 110px 110px 130px", fontSize: 22, borderTop: "1px solid rgba(255,255,255,0.08)", background: i === 0 ? `${tagColor}14` : "transparent" }}>
+                    style={{ gridTemplateColumns: "90px 70px 1fr 110px 110px 130px", fontSize: 22, borderTop: "1px solid rgba(255,255,255,0.08)", background: i === 0 ? `${tagColor}14` : "transparent" }}>
                     <div className="font-black" style={{ fontSize: 24, color: i === 0 ? tagColor : textColor, textShadow: i === 0 ? `0 0 14px ${tagColor}99` : "none" }}>#{i + 1}</div>
+                    <div className="flex items-center">
+                      {r.logo ? (
+                        <img src={r.logo} alt="" style={{ height: 52, width: 52, objectFit: "cover", borderRadius: 8 }} />
+                      ) : (
+                        <div style={{ height: 52, width: 52 }} />
+                      )}
+                    </div>
                     <div className="font-semibold">{r.name}</div>
                     <div className="text-center">{r.kills}</div>
                     <div className="text-center">{r.pos}</div>
